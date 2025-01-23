@@ -3,14 +3,26 @@
 <head>
 <meta charset="utf-8">
 <title>Hello OpenCV.js</title>
+<script src="https://docs.opencv.org/4.5.0/opencv.js" type="text/javascript"></script>
 </head>
 <body>
 <h2>Curtains Blinds and Bath Utilities</h2>
 <div>
   <div class="inputoutput">
-    <img id="imageSrc" alt="Uploaded Image Here." />
+    <figure>
+      <img id="imageSrc" alt="No file selected" />
+      <figcaption>uploaded image</figcaption>
+    </figure>
     <div class="caption">imageSrc <input type="file" id="fileInput" name="file" /></div>
-    <img id="container" alt="Pasted image goes here.">
+    <figure>
+      <img id="imagePasteThumbnail" alt="Pasted image goes here." style="height: 100px"/>
+      <figcaption style="text-align: Left; font-size: larger;">Pasted Image</figcaption>
+    </figure>
+    <img id="imagePasteSource" alt="Pasted image goes here." style="display: none;"/>
+    <figure></figure>
+      <canvas id="outputCanvas" alt="Output image here." style="border: 1px solid black;"></canvas>
+      <figcaption style="text-align: center; font-size: larger;">Output Image</figcaption>
+    </figure>
   </div>
 </div>
 <script type="text/javascript">
@@ -19,12 +31,20 @@ let inputElement = document.getElementById("fileInput");
 inputElement.addEventListener("change", (e) => {
   imgElement.src = URL.createObjectURL(e.target.files[0]);
 }, false);
+
+imgElement.onload = function() {
+  let mat = cv.imread(imgElement);
+  cv.imshow('outputCanvas', mat);
+  mat.delete();
+};
 </script>
 <script>
   document.onpaste = function(pasteEvent) {
     // consider the first item (can be easily extended for multiple items)
     var item = pasteEvent.clipboardData.items[0];
- 
+    var imageThumbnail = document.getElementById("imagePasteThumbnail");
+    var imagePasteSource = document.getElementById("imagePasteSource");
+
     if (item.type.indexOf("image") === 0)
     {
         // Get the blob of the image
@@ -38,17 +58,79 @@ inputElement.addEventListener("change", (e) => {
             // Get the data URL of the image
             let dataURL = event.target.result;
  
-            // get the img container id
-            let img = document.getElementById("container");
- 
             // Set the source attribute of the image element
-            img.src = dataURL;
+            imageThumbnail.src = dataURL;
+            imagePasteSource.src = dataURL;
         };
- 
+        
+        
+       
         // Read the blob as a data URL
         reader.readAsDataURL(blob);
+
     }
 }
+
+function cropBackground(src, padding=5, iterations=2) {
+  cv.cvtColor(src, src, cv.COLOR_RGBA2RGB, 0);
+  let mask = new cv.Mat();
+  let bgdModel = new cv.Mat();
+  let fgdModel = new cv.Mat();
+  let rect = new cv.Rect(padding, padding, src.cols - 2*padding, src.rows-2*padding);
+  cv.grabCut(src, mask, rect, bgdModel, fgdModel, 1, cv.GC_INIT_WITH_RECT);
+  cv.grabCut(src, mask, rect, bgdModel, fgdModel, 1, cv.GC_EVAL);
+
+  // draw foreground
+  for (let i = 0; i < src.rows; i++) {
+      for (let j = 0; j < src.cols; j++) {
+          if (mask.ucharPtr(i, j)[0] == 0 || mask.ucharPtr(i, j)[0] == 2) {
+              src.ucharPtr(i, j)[0] = 255;
+              src.ucharPtr(i, j)[1] = 255;
+              src.ucharPtr(i, j)[2] = 255;
+          }
+      }
+  }
+
+  mask.delete(); bgdModel.delete(); fgdModel.delete();
+  return src;
+
+}
+
+var imageThumbnail = document.getElementById("imagePasteThumbnail")
+var imagePasteSource = document.getElementById("imagePasteSource");
+
+imageThumbnail.onload = function() {
+      if (imageThumbnail.height > 100) {
+        imageThumbnail.width = (imageThumbnail.width / imageThumbnail.height) * 100;
+        imageThumbnail.height = 100;
+      }
+    };
+
+imagePasteSource.onload = function() {
+    console.debug("imagePasteSource loaded")
+    let src = cv.imread(imagePasteSource);
+    let pad = 15
+    let max_size = 500
+    
+
+    src = cropBackground(src, pad);
+    let size = Math.max(src.cols, src.rows);
+    let top = (size - src.rows) / 2;
+    let bottom = top;
+    let left = (size - src.cols) / 2;
+    let right = left;
+    let borderType = cv.BORDER_CONSTANT;
+    let black = new cv.Scalar(255, 255, 255, 0);
+    cv.copyMakeBorder(src, src, top, bottom, left, right, borderType, black);
+    let dsize = new cv.Size(500, 500);
+    cv.resize(src, src, dsize, 0, 0, cv.INTER_AREA);
+
+    cv.imshow('outputCanvas', src);
+    console.log("Finished writing to canvas")
+    src.delete();
+    };
+
+
 </script>
 </body>
 </html>
