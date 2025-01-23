@@ -1,14 +1,54 @@
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Vite + React + TS</title>
-  </head>
-  <body>
-    <p> Hello Jude!</p>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Hello OpenCV.js</title>
+</head>
+<body>
+<h2>Curtains Blinds and Bath Utilities</h2>
+<div>
+  <div class="inputoutput">
+    <img id="imageSrc" alt="Uploaded Image Here." />
+    <div class="caption">imageSrc <input type="file" id="fileInput" name="file" /></div>
+    <img id="container" alt="Pasted image goes here.">
+  </div>
+</div>
+<script type="text/javascript">
+let imgElement = document.getElementById("imageSrc")
+let inputElement = document.getElementById("fileInput");
+inputElement.addEventListener("change", (e) => {
+  imgElement.src = URL.createObjectURL(e.target.files[0]);
+}, false);
+</script>
+<script>
+  document.onpaste = function(pasteEvent) {
+    // consider the first item (can be easily extended for multiple items)
+    var item = pasteEvent.clipboardData.items[0];
+ 
+    if (item.type.indexOf("image") === 0)
+    {
+        // Get the blob of the image
+        var blob = item.getAsFile();
+ 
+        // Create a file reader
+        var reader = new FileReader();
+ 
+        // Set the onload event handler
+        reader.onload = function(event) {
+            // Get the data URL of the image
+            let dataURL = event.target.result;
+ 
+            // get the img container id
+            let img = document.getElementById("container");
+ 
+            // Set the source attribute of the image element
+            img.src = dataURL;
+        };
+ 
+        // Read the blob as a data URL
+        reader.readAsDataURL(blob);
+    }
+}
+</script>
+</body>
 </html>
