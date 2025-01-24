@@ -46,14 +46,14 @@
                 if (items[i].type.indexOf("image") !== -1) {
                     const blob = items[i].getAsFile();
                     const img = document.getElementById("pastedImage");
-                    const sourceImg = document.getElementById("sourceImage");
+                    var sourceImg = document.getElementById("sourceImage");
                     const reader = new FileReader();
                     reader.onload = function(e) {
                         img.src = e.target.result;
-                        const aspectRatio = img.naturalWidth / img.naturalHeight;
-                        img.width = aspectRatio * 100;
                         sourceImg.src = e.target.result;
-                        img.onload = function() {
+                        const aspectRatio = sourceImg.naturalWidth / sourceImg.naturalHeight;
+                        img.width = aspectRatio * 100;
+                        sourceImg.onload = function() {
                             processImage(sourceImg);
                         }
                     };
@@ -64,10 +64,11 @@
 
         function processImage(img) {
             const canvas = document.getElementById("canvas");
+            sourceImg = document.getElementById("sourceImage");
             const resultImage = document.getElementById("resultImage");
             const ctx = canvas.getContext("2d");
-            const src = cv.imread(img);
-            const dst = new cv.Mat();
+            const src = cv.imread(sourceImg);
+            const dst = new cv.Mat();            
             squareCenterResize(src, dst);
             // cv.cvtColor(dst, dst, cv.COLOR_BGR2RGBA, 0);
             cv.imshow('canvas', dst);
@@ -79,6 +80,33 @@
 
         function squareCenterResize(src, dst) {
             // Placeholder for the actual OpenCV function implementation
+            // Convert image to grayscale and threshold it to get the mask
+            let gray = new cv.Mat();
+            cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY, 0);
+            let mask = new cv.Mat();
+            cv.threshold(gray, mask, 1, 255, cv.THRESH_BINARY);
+            gray.delete();
+
+            // Find contours
+            let contours = new cv.MatVector();
+            let hierarchy = new cv.Mat();
+            cv.findContours(mask, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
+            mask.delete();
+            hierarchy.delete();
+
+            // Get bounding box of the largest contour
+            let maxRect = new cv.Rect(0, 0, 0, 0);
+            for (let i = 0; i < contours.size(); i++) {
+                let rect = cv.boundingRect(contours.get(i));
+                if (rect.width * rect.height > maxRect.width * maxRect.height) {
+                    maxRect = rect;
+                }
+            }
+            contours.delete();
+
+            // Crop the image to the bounding box
+            src = src.roi(maxRect);
+
             let top = bottom = left = right = 0;
             if (src.rows > src.cols) {
                 left = right = Math.floor((src.rows - src.cols) / 2);
