@@ -86,7 +86,7 @@
                 top = bottom = Math.floor((src.cols - src.rows) / 2);
             }
 
-            const color = new cv.Scalar(255, 255, 255, 255); // White background
+            const color = new cv.Scalar(255, 255, 255, 0); // White background
             cv.copyMakeBorder(src, dst, top, bottom, left, right, cv.BORDER_CONSTANT, color);
             cv.resize(dst, dst, new cv.Size(500, 500), 0, 0, cv.INTER_AREA);
         }
