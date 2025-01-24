@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>center-crop-square</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+        }
+        h1 {
+            font-size: 2em;
+            margin-bottom: 20px;
+        }
+        img {
+            max-height: 100px;
+            margin-bottom: 20px;
+        }
+        canvas {
+            border: 1px solid #000;
+        }
+    </style>
+    <script src="https://docs.opencv.org/4.5.0/opencv.js"></script>
+</head>
+<body onpaste="handlePaste(event)">
+    <h1>center-crop-square</h1>
+    
+    <img id="pastedImage" alt="Pasted Image" width="100" height="100" style="background-color: #ccc; display: flex; align-items: center; justify-content: center;">
+    <img id="sourceImage" style="display:none;" alt="Source Image">
+    <canvas id="canvas" width="500" height="500"></canvas>
+    <img id="resultImage" style="border: 2px solid #000;" alt="Result Image">
+    
+    <script>
+        
+       
+        function handlePaste(event) {
+            const items = event.clipboardData.items;
+            for (let i = 0; i < items.length; i++) {
+                if (items[i].type.indexOf("image") !== -1) {
+                    const blob = items[i].getAsFile();
+                    const img = document.getElementById("pastedImage");
+                    const sourceImg = document.getElementById("sourceImage");
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        img.src = e.target.result;
+                        const aspectRatio = img.naturalWidth / img.naturalHeight;
+                        img.width = aspectRatio * 100;
+                        sourceImg.src = e.target.result;
+                        img.onload = function() {
+                            processImage(sourceImg);
+                        }
+                    };
+                    reader.readAsDataURL(blob);
+                }
+            }
+        }
+
+        function processImage(img) {
+            const canvas = document.getElementById("canvas");
+            const resultImage = document.getElementById("resultImage");
+            const ctx = canvas.getContext("2d");
+            const src = cv.imread(img);
+            const dst = new cv.Mat();
+            squareCenterResize(src, dst);
+            // cv.cvtColor(dst, dst, cv.COLOR_BGR2RGBA, 0);
+            cv.imshow('canvas', dst);
+            resultImage.src = canvas.toDataURL("image/png");
+            // resultImage.style.display = 'block';
+            src.delete();
+            dst.delete();
+        }
+
+        function squareCenterResize(src, dst) {
+            // Placeholder for the actual OpenCV function implementation
+            let top = bottom = left = right = 0;
+            if (src.rows > src.cols) {
+                left = right = Math.floor((src.rows - src.cols) / 2);
+            } else {
+                top = bottom = Math.floor((src.cols - src.rows) / 2);
+            }
+
+            const color = new cv.Scalar(255, 255, 255, 255); // White background
+            cv.copyMakeBorder(src, dst, top, bottom, left, right, cv.BORDER_CONSTANT, color);
+            cv.resize(dst, dst, new cv.Size(500, 500), 0, 0, cv.INTER_AREA);
+        }
+        
+        canvas.addEventListener('click', function() {
+            const canvas = document.getElementById('canvas');
+            const resultImage = document.getElementById('resultImage');
+            
+            // Change border to red
+            canvas.style.border = '1px solid red';
+            
+            // Revert border after 0.25 seconds
+            setTimeout(() => {
+                canvas.style.border = '1px solid #000';
+            }, 250);
+            
+            // const imageData = canvasToImage();
+            // resultImage.src = imageData;
+
+            // Copy image to clipboard
+            canvas.toBlob(function(blob) {
+                const item = new ClipboardItem({ 'image/png': blob });
+                navigator.clipboard.write([item]);
+            });
+        });
+        
+    </script>
+</body>
+</html>

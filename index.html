@@ -114,21 +114,27 @@ imagePasteSource.onload = function() {
     
 
     src = cropBackground(src, pad);
-    let size = Math.max(src.cols, src.rows);
-    let top = (size - src.rows) / 2;
-    let bottom = top;
-    let left = (size - src.cols) / 2;
-    let right = left;
-    let borderType = cv.BORDER_CONSTANT;
-    let black = new cv.Scalar(255, 255, 255, 0);
-    cv.copyMakeBorder(src, src, top, bottom, left, right, borderType, black);
-    let dsize = new cv.Size(500, 500);
-    cv.resize(src, src, dsize, 0, 0, cv.INTER_AREA);
 
+    function centerCropResize(src, size) {
+      let max_size = Math.max(src.cols, src.rows);
+      let top = (max_size - src.rows) / 2;
+      let bottom = top;
+      let left = (max_size - src.cols) / 2;
+      let right = left;
+      let borderType = cv.BORDER_CONSTANT;
+      let white = new cv.Scalar(255, 255, 255, 0);
+      cv.copyMakeBorder(src, src, top, bottom, left, right, borderType, white);
+      let dsize = new cv.Size(size, size);
+      cv.resize(src, src, dsize, 0, 0, cv.INTER_AREA);
+      return src;
+    }
+    src = centerCropResize(src, max_size);
     cv.imshow('outputCanvas', src);
     console.log("Finished writing to canvas")
     src.delete();
     };
+
+    
 
 
 </script>
