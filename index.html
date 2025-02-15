@@ -15,35 +15,121 @@
             margin: 0;
             background-color: #f0f0f0;
         }
-        h1 {
-            font-size: 2em;
+        body {
+            /* padding-top: 100px; Adjust this value based on the height of your header */
+        }
+        #header{
+            font-size: 1.1em;
             margin-bottom: 20px;
+            position: fixed;
+            top: 0;
+            width: 100%;
+            background-color: #f0f0f0;
+            text-align: center;
+            padding: 10px 0;
+            z-index: 1000;
         }
         img {
-            max-height: 100px;
+            max-height: 200px;
             margin-bottom: 20px;
         }
         canvas {
             border: 1px solid #000;
         }
+        button {
+            padding: 10px;
+            margin: 4px;
+            margin-bottom: 10px;
+        }
+        .image-upload-button {
+            background-color: #4c8eaf;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            padding: 10px 20px;
+            font-size: 1em;
+        }
+        .image-upload-button:hover {
+            background-color: #4553a0;
+        }
+        .image-download-button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            padding: 10px 20px;
+            font-size: 1em;
+        }
+
+        .image-download-button:hover {
+            background-color: #45a049c5;
+        }
     </style>
     <script src="https://docs.opencv.org/4.5.0/opencv.js"></script>
 </head>
 <body onpaste="handlePaste(event)">
-    <h1>center-crop-square</h1>
-    
-    <img id="pastedImage" alt="Pasted Image" width="100" height="100" style="background-color: #ccc; display: flex; align-items: center; justify-content: center;">
+    <div id="header">
+        <h1>center-crop-square</h1>
+    </div> 
+    <div style="display: flex; align-items: center;">
+        <button class="image-download-button" onclick="document.getElementById('fileInput').click()">Upload Image</button>
+        <input type="file" id="fileInput" style="display:none" accept="image/*" onchange="handleFileUpload(event)">
+        <button class="image-upload-button" onclick="downloadImage()">Download Image</button>
+    </div>
+    <span style="display: flex; align-items: center;">
+        <img id="pastedImage" alt="Pasted Image" width="100" height="100" style="background-color: #ccc; display: flex; align-items: center; justify-content: center;">
+        <span style="margin: 10px 10px; padding-bottom: 20px; display: flex; align-items: center">&#8594;</span>
+        <img id="resultImage"  alt="Result Image">
+    </span>
+
+    <!-- <span> -->
+    <!-- <img id="pastedImage" alt="Pasted Image" width="100" height="100" style="background-color: #ccc; display: flex; align-items: center; justify-content: center;"> -->
     <img id="sourceImage" style="display:none;" alt="Source Image">
-    <canvas id="canvas" width="500" height="500"></canvas>
-    <img id="resultImage" style="border: 2px solid #000;" alt="Result Image">
-    
+    <canvas id="canvas" width="500" height="500" style="display:none"></canvas>
+    <!-- <img id="resultImage"  style="" alt="Result Image"> -->
+    </span>
+
     <script>
+
+        let imageTitle = '';
         
+        function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (file) {
+                imageTitle = file.name.split('.')[0];
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const img = document.getElementById("pastedImage");
+                    const sourceImg = document.getElementById("sourceImage");
+                    img.src = e.target.result;
+                    sourceImg.src = e.target.result;
+                    sourceImg.onload = function() {
+                        processImage(e.target.result);
+                    };
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function downloadImage(event) {
+            if (imageTitle != '') {
+                const resultImage = document.getElementById('resultImage');
+                const link = document.createElement('a');
+                link.href = resultImage.src;
+                link.download = `${imageTitle}_centered.png`;
+                link.click();
+            }
+        }
        
         function handlePaste(event) {
             const items = event.clipboardData.items;
             for (let i = 0; i < items.length; i++) {
                 if (items[i].type.indexOf("image") !== -1) {
+                    imageTitle = items[i].getAsFile().name//.split('.')[0];
                     const blob = items[i].getAsFile();
                     const img = document.getElementById("pastedImage");
                     var sourceImg = document.getElementById("sourceImage");
@@ -54,7 +140,7 @@
                         const aspectRatio = sourceImg.naturalWidth / sourceImg.naturalHeight;
                         img.width = aspectRatio * 100;
                         sourceImg.onload = function() {
-                            processImage(sourceImg);
+                            processImage(e.target.result);
                         }
                     };
                     reader.readAsDataURL(blob);
@@ -80,34 +166,73 @@
 
         function squareCenterResize(src, dst) {
             // Placeholder for the actual OpenCV function implementation
-            // Convert image to grayscale and threshold it to get the mask
-            let gray = new cv.Mat();
-            cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY, 0);
-            let mask = new cv.Mat();
-            cv.threshold(gray, mask, 1, 255, cv.THRESH_BINARY);
-            gray.delete();
+            
+            // Crop the image by finding the topmost, rightmost, leftmost, and bottommost pixels that are not transparent
+            let top = 0;
+            let bottom = src.rows - 1;
+            let left = 0;
+            let right = src.cols - 1;
+            let found = false;
 
-            // Find contours
-            let contours = new cv.MatVector();
-            let hierarchy = new cv.Mat();
-            cv.findContours(mask, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
-            mask.delete();
-            hierarchy.delete();
-
-            // Get bounding box of the largest contour
-            let maxRect = new cv.Rect(0, 0, 0, 0);
-            for (let i = 0; i < contours.size(); i++) {
-                let rect = cv.boundingRect(contours.get(i));
-                if (rect.width * rect.height > maxRect.width * maxRect.height) {
-                    maxRect = rect;
+            // Find top
+            for (let i = 0; i < src.rows; i++) {
+                for (let j = 0; j < src.cols; j++) {
+                    if (src.ucharPtr(i, j)[3] !== 0) {
+                        top = i;
+                        found = true;
+                        break;
+                    }
                 }
+                if (found) break;
             }
-            contours.delete();
 
-            // Crop the image to the bounding box
-            src = src.roi(maxRect);
+            // Find bottom
+            found = false;
+            for (let i = src.rows - 1; i >= 0; i--) {
+                for (let j = 0; j < src.cols; j++) {
+                    if (src.ucharPtr(i, j)[3] !== 0) {
+                        bottom = i;
+                        found = true;
+                        break;
+                    }
+                }
+                if (found) break;
+            }
 
-            let top = bottom = left = right = 0;
+            // Find left
+            found = false;
+            for (let j = 0; j < src.cols; j++) {
+                for (let i = 0; i < src.rows; i++) {
+                    if (src.ucharPtr(i, j)[3] !== 0) {
+                        left = j;
+                        found = true;
+                        break;
+                    }
+                }
+                if (found) break;
+            }
+
+            // Find right
+            found = false;
+            for (let j = src.cols - 1; j >= 0; j--) {
+                for (let i = 0; i < src.rows; i++) {
+                    if (src.ucharPtr(i, j)[3] !== 0) {
+                        right = j;
+                        found = true;
+                        break;
+                    }
+                }
+                if (found) break;
+            }
+
+            // Crop the image
+            const rect = new cv.Rect(left, top, right - left + 1, bottom - top + 1);
+            const cropped = src.roi(rect);
+            cropped.copyTo(dst);
+            cropped.delete();
+
+
+            top = bottom = left = right = 0;
             if (src.rows > src.cols) {
                 left = right = Math.floor((src.rows - src.cols) / 2);
             } else {
@@ -116,9 +241,11 @@
 
             const color = new cv.Scalar(255, 255, 255, 0); // White background
             cv.copyMakeBorder(src, dst, top, bottom, left, right, cv.BORDER_CONSTANT, color);
-            cv.resize(dst, dst, new cv.Size(500, 500), 0, 0, cv.INTER_AREA);
+            // cv.resize(dst, dst, new cv.Size(500, 500), 0, 0, cv.INTER_AREA);
         }
+    
         
+
         canvas.addEventListener('click', function() {
             const canvas = document.getElementById('canvas');
             const resultImage = document.getElementById('resultImage');
