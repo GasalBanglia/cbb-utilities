@@ -1,21 +1,9 @@
-# React + TypeScript + Vite
+# CBB Utilities
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+This is a Vercel-managed Vite/React Web app that provides various data processing utilities for a retail client of mine. The project is ongoing and features will continue to be implemented as needed.
 
-While this project uses React, Vite supports many popular JS frameworks. [See all the supported frameworks](https://vitejs.dev/guide/#scaffolding-your-first-vite-project).
+## Current Utilities
+<li>Center-Squaring -- Takes an input image of an object, pads the smaller dimension to create a new square image, finds the contours of its outline, and centers it inside the new square frame.</li>
 
-## Deploy Your Own
-
-Deploy your own Vite project with Vercel.
-
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/vercel/vercel/tree/main/examples/vite-react&template=vite-react)
-
-_Live Example: https://vite-react-example.vercel.app_
-
-### Deploying From Your Terminal
-
-You can deploy your new Vite project with a single command from your terminal using [Vercel CLI](https://vercel.com/download):
-
-```shell
-$ vercel
-```
+## Utilities in Development
+<li>Background removal -- Using an Amazon Lambda function, utilizes a deep convolutional neural network to remove the background from the image before cropping, squaring, and centering.</li>
