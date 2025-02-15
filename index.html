@@ -76,9 +76,9 @@
         <h1>center-crop-square</h1>
     </div> 
     <div style="display: flex; align-items: center;">
-        <button class="image-download-button" onclick="document.getElementById('fileInput').click()">Upload Image</button>
+        <button class="image-upload-button" onclick="document.getElementById('fileInput').click()">Upload Image</button>
         <input type="file" id="fileInput" style="display:none" accept="image/*" onchange="handleFileUpload(event)">
-        <button class="image-upload-button" onclick="downloadImage()">Download Image</button>
+        <button class="image-download-button" onclick="downloadImage()">Download Image</button>
     </div>
     <span style="display: flex; align-items: center;">
         <img id="pastedImage" alt="Pasted Image" width="100" height="100" style="background-color: #ccc; display: flex; align-items: center; justify-content: center;">
