@@ -5,6 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>center-crop-square</title>
     <style>
+        :root {
+            --thumbnail_size: 150px;
+        }
+
         body {
             font-family: Arial, sans-serif;
             display: flex;
@@ -15,11 +19,10 @@
             margin: 0;
             background-color: #f0f0f0;
         }
-        body {
-            /* padding-top: 100px; Adjust this value based on the height of your header */
-        }
+        /* body {
+            padding-top: 100px; Adjust this value based on the height of your header
+        } */
         #header{
-            font-size: 1.1em;
             margin-bottom: 20px;
             position: fixed;
             top: 0;
@@ -28,7 +31,23 @@
             text-align: center;
             padding: 10px 0;
             z-index: 1000;
+            background-color: #4553a0;
         }
+
+        #title * {
+            /* margin: 0; */
+            margin-left: 50px;
+            text-align: left;
+            font-weight: 800;
+            font-family: 'Trebuchet MS'
+        }
+
+        #title h1 {
+            font-size: 3em;
+            margin-bottom:10px;
+        }
+
+
         img {
             max-height: 200px;
             margin-bottom: 20px;
@@ -73,22 +92,32 @@
 </head>
 <body onpaste="handlePaste(event)">
     <div id="header">
+        <div id="title">
         <h1>center-crop-square</h1>
+        <h3 style="margin-top:0px;">Now with Background Removal!</h3>
+        </div>
     </div> 
     <div style="display: flex; align-items: center;">
         <button class="image-upload-button" onclick="document.getElementById('fileInput').click()">Upload Image</button>
         <input type="file" id="fileInput" style="display:none" accept="image/*" onchange="handleFileUpload(event)">
         <button class="image-download-button" onclick="downloadImage()">Download Image</button>
     </div>
-    <span style="display: flex; align-items: center;">
-        <img id="pastedImage" alt="Pasted Image" width="100" height="100" style="background-color: #ccc; display: flex; align-items: center; justify-content: center;">
+    <span id="image_thumbnails" style="display: flex; align-items: center;">
+        <img id="pastedImage" alt="Original Image" width="100" height="100" style="border-radius: 10px; background-color: #ccc; display: flex; text-align: center; align-items: center; justify-content: center;">
         <span style="margin: 10px 10px; padding-bottom: 20px; display: flex; align-items: center">&#8594;</span>
-        <img id="resultImage"  alt="Result Image">
+        <img id="bg_removed" width="100" height="100" style="border-radius: 10px; background-color: rgba(211, 229, 245, 0.942); display: flex; text-align: center; align-items: center; justify-content: center;" alt="BG Removed Image">
+        <span style="margin: 10px 10px; padding-bottom: 20px; display: flex; text-align: center; align-items: center">&#8594;</span>
+        <img id="resultImage" height="100" width="100" alt="Final Image" style="border-radius: 10px; background-color: rgba(211, 245, 219, 0.942); display: flex; text-align: center; align-items: center; justify-content: center;">
+        <!-- <div style="margin: 10px;   display: flex; text-align: center; align-items: flex-start;">
+            <label for="paddingInput">Padding (px):</label>
+            <input type="number" id="paddingInput" value="0" style="padding: 5px; border-radius: 5px; border: 1px solid #ccc; width: 80px; text-align: center;">
+        </div> -->
     </span>
 
     <!-- <span> -->
     <!-- <img id="pastedImage" alt="Pasted Image" width="100" height="100" style="background-color: #ccc; display: flex; align-items: center; justify-content: center;"> -->
     <img id="sourceImage" style="display:none;" alt="Source Image">
+    <img id="sourceBGRM" style="display:none;" alt="BGRM Source Image">
     <canvas id="canvas" width="500" height="500" style="display:none"></canvas>
     <!-- <img id="resultImage"  style="" alt="Result Image"> -->
     </span>
@@ -96,24 +125,71 @@
     <script>
 
         let imageTitle = '';
+        let aspectRatio = 1;
+
+        // Function to post image file to BRIA.AI's image editing/background removal API endpoint.
+        function removeBackground(img, filename) {
+            const url = "https://engine.prod.bria-api.com/v1/background/remove";
+            const headers = { 'api_token': '6280526cd01e40bdae50d8e1662fb0a4' };
+            const formData = new FormData();
+            formData.append('file', img, filename);
+
+            fetch(url, {
+                method: 'POST',
+                headers: headers,
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                const resultUrl = data.result_url;
+                return fetch(resultUrl);
+            })
+            .then(response => response.blob())
+            .then(blob => {
+                const url = URL.createObjectURL(blob);
+                sourceImg = document.getElementById("sourceBGRM")
+                sourceImg.src = url;
+                bgrmImg = document.getElementById("bg_removed")
+                bgrmImg.src = url;
+                bgrmImg.width = aspectRatio * thumbnail_size;
+            })
+            .catch(error => console.error('Error:', error));
+        }
+
         
         function handleFileUpload(event) {
             const file = event.target.files[0];
             if (file) {
                 imageTitle = file.name.split('.')[0];
                 const reader = new FileReader();
+                
+                
+                // Load the file for local processing
                 reader.onload = function(e) {
-                    const img = document.getElementById("pastedImage");
-                    const sourceImg = document.getElementById("sourceImage");
-                    img.src = e.target.result;
+                    pasteImg = document.getElementById("pastedImage");
+                    sourceImg = document.getElementById("sourceImage");
+                    pasteImg.src = e.target.result;
                     sourceImg.src = e.target.result;
-                    sourceImg.onload = function() {
-                        processImage(e.target.result);
-                    };
+                    sourceImg.onload = function (e) {
+                        aspectRatio = sourceImg.naturalWidth / sourceImg.naturalHeight;
+                        pasteImg.width = aspectRatio * thumbnail_size;
+                    }
+                    
+                    // sourceImg.onload = function() {
+                    //     processImage(e.target.result);
+                    // };
                 };
                 reader.readAsDataURL(file);
+                // send the file to BRIA.AI's background removal API
+                removeBackground(file, imageTitle);
             }
         }
+
+        // Set the onload event for the sourceBGRM <img> element
+        document.getElementById("sourceBGRM").onload = function(e)  {
+            // process the image after the background has been removed
+            processImage(document.getElementById("sourceBGRM"));
+        };
 
         function downloadImage(event) {
             if (imageTitle != '') {
@@ -123,7 +199,7 @@
                 link.download = `${imageTitle}_centered.png`;
                 link.click();
             }
-        }
+        };
        
         function handlePaste(event) {
             const items = event.clipboardData.items;
@@ -131,35 +207,43 @@
                 if (items[i].type.indexOf("image") !== -1) {
                     imageTitle = items[i].getAsFile().name//.split('.')[0];
                     const blob = items[i].getAsFile();
-                    const img = document.getElementById("pastedImage");
-                    var sourceImg = document.getElementById("sourceImage");
+
+                    pasteImg = document.getElementById("pastedImage");
+                    let sourceImg = document.getElementById("sourceImage");
                     const reader = new FileReader();
                     reader.onload = function(e) {
-                        img.src = e.target.result;
+                        pasteImg.src = e.target.result;
                         sourceImg.src = e.target.result;
-                        const aspectRatio = sourceImg.naturalWidth / sourceImg.naturalHeight;
-                        img.width = aspectRatio * 100;
-                        sourceImg.onload = function() {
-                            processImage(e.target.result);
-                        }
+                        sourceImg.onload = function (e) {
+                            aspectRatio = sourceImg.naturalWidth / sourceImg.naturalHeight;
+                            pasteImg.width = aspectRatio * thumbnail_size;
+                    }
+                        // sourceImg.onload = function() {
+                        //     processImage(e.target.result);
+                        // }
                     };
                     reader.readAsDataURL(blob);
+                    // send the image to BRIA.AI's background removal API
+                    removeBackground(blob, imageTitle);
                 }
             }
         }
 
         function processImage(img) {
+            // Run the img through the BRIA background remove model
+            // removeBackground(img);
+            
             const canvas = document.getElementById("canvas");
-            sourceImg = document.getElementById("sourceImage");
+            // sourceImg = document.getElementById("sourceImage");
             const resultImage = document.getElementById("resultImage");
             const ctx = canvas.getContext("2d");
-            const src = cv.imread(sourceImg);
+            const src = cv.imread(img);
             const dst = new cv.Mat();            
             squareCenterResize(src, dst);
             // cv.cvtColor(dst, dst, cv.COLOR_BGR2RGBA, 0);
             cv.imshow('canvas', dst);
             resultImage.src = canvas.toDataURL("image/png");
-            resultImage.style.border = '1px solid black';
+            // resultImage.style.border = '1px solid black';
             // resultImage.style.display = 'block';
             src.delete();
             dst.delete();
@@ -237,6 +321,20 @@
             const xOffset = Math.floor((size - cropped.cols) / 2);
             const yOffset = Math.floor((size - cropped.rows) / 2);
 
+            /*
+            const padding = parseInt(document.getElementById('paddingInput').value, 10) || 0;
+            const paddedSize = size + 2 * padding;
+            const padded = new cv.Mat(paddedSize, paddedSize, src.type(), new cv.Scalar(255, 255, 255, 0)); // Transparent background
+
+            const xOffsetPadded = Math.floor((paddedSize - cropped.cols) / 2);
+            const yOffsetPadded = Math.floor((paddedSize - cropped.rows) / 2);
+
+            cropped.copyTo(padded.roi(new cv.Rect(xOffsetPadded, yOffsetPadded, cropped.cols, cropped.rows)));
+            padded.copyTo(dst);
+
+            padded.delete();
+            */
+
             cropped.copyTo(centered.roi(new cv.Rect(xOffset, yOffset, cropped.cols, cropped.rows)));
             centered.copyTo(dst);
 
@@ -267,6 +365,14 @@
                 const item = new ClipboardItem({ 'image/png': blob });
                 navigator.clipboard.write([item]);
             });
+        });
+
+        var thumbnail_size = 150;
+        document.querySelectorAll('#image_thumbnails img').forEach((child) => {
+            // console.log(child);
+            child.width = thumbnail_size;
+            child.height = thumbnail_size;
+            // console.log(child)
         });
         
     </script>
