@@ -34,9 +34,13 @@
             background-color: #4553a0;
         }
 
+        #title {
+            margin-left: 0px;;
+        }
+
         #title * {
             /* margin: 0; */
-            margin-left: 50px;
+            margin-left: 10px;
             text-align: left;
             font-weight: 800;
             font-family: 'Trebuchet MS'
@@ -45,12 +49,14 @@
         #title h1 {
             font-size: 3em;
             margin-bottom:10px;
+            margin-top:0px;
         }
 
 
         img {
             max-height: 200px;
             margin-bottom: 20px;
+            /* line-height: 100px; */
         }
         canvas {
             border: 1px solid #000;
@@ -73,6 +79,7 @@
         .image-upload-button:hover {
             background-color: #4553a0;
         }
+
         .image-download-button {
             background-color: #4CAF50;
             color: white;
@@ -90,19 +97,22 @@
     </style>
     <script src="https://docs.opencv.org/4.5.0/opencv.js"></script>
 </head>
-<body onpaste="handlePaste(event)">
+<body onpaste="handlePaste(event)" ondrop="handleFileDrop(event)" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)">
     <div id="header">
-        <div id="title">
-        <h1>center-crop-square</h1>
-        <h3 style="margin-top:0px;">Now with Background Removal!</h3>
-        </div>
+        <span style="display:flex; align-items: center;">
+            <img src="SSC_logo2.png" height="100px"  style="margin-left: 10px; margin-right:0px; ">
+            <div id="title">
+                <h1>center-crop-square</h1>
+                <h3 style="margin-top:0px;">Now with Background Removal!</h3>
+            </div>
+        </span>
     </div> 
     <div style="display: flex; align-items: center;">
         <button class="image-upload-button" onclick="document.getElementById('fileInput').click()">Upload Image</button>
         <input type="file" id="fileInput" style="display:none" accept="image/*" onchange="handleFileUpload(event)">
         <button class="image-download-button" onclick="downloadImage()">Download Image</button>
     </div>
-    <span id="image_thumbnails" style="display: flex; align-items: center;">
+    <span id="image_thumbnails" style="display: flex; align-items: center; justify-content: center;">
         <img id="pastedImage" alt="Original Image" width="100" height="100" style="border-radius: 10px; background-color: #ccc; display: flex; text-align: center; align-items: center; justify-content: center;">
         <span style="margin: 10px 10px; padding-bottom: 20px; display: flex; align-items: center">&#8594;</span>
         <img id="bg_removed" width="100" height="100" style="border-radius: 10px; background-color: rgba(211, 229, 245, 0.942); display: flex; text-align: center; align-items: center; justify-content: center;" alt="BG Removed Image">
@@ -156,7 +166,54 @@
             .catch(error => console.error('Error:', error));
         }
 
-        
+
+        // Function to handle file dragover event
+        function handleDragOver(event) {
+            // Change the style of the document to indicate that a file can be dropped
+            event.preventDefault();
+            event.dataTransfer.dropEffect = 'copy';
+            document.body.style.backgroundColor = '#a0a0a0';
+            document.getElementById("image_thumbnails").style.outline = '5px dashed #4CAF50';
+        }
+
+        // Function to handle file dragleave event
+        function handleDragLeave(event) {
+            // Change the style of the document to indicate that a file cannot be dropped
+            event.preventDefault();
+            document.body.style.backgroundColor = '#f0f0f0';
+            document.getElementById("image_thumbnails").style.outline = '';
+        }
+
+        // Function to handle an image being dragged and dropped onto the page
+        function handleFileDrop(event) {
+            event.preventDefault();
+            // Reset the style of the body/image thumbnails
+            event.preventDefault();
+            document.body.style.backgroundColor = '#f0f0f0';
+            document.getElementById("image_thumbnails").style.outline = '';
+
+            // Get the file from the event
+            const file = event.dataTransfer.files[0];
+            if (file) {
+                imageTitle = file.name.split('.')[0];
+                const reader = new FileReader();
+                
+                reader.onload = function(e) {
+                    pasteImg = document.getElementById("pastedImage");
+                    sourceImg = document.getElementById("sourceImage");
+                    pasteImg.src = e.target.result;
+                    sourceImg.src = e.target.result;
+                    sourceImg.onload = function () {
+                        aspectRatio = sourceImg.naturalWidth / sourceImg.naturalHeight;
+                        pasteImg.width = aspectRatio * thumbnail_size;
+                    }
+                };
+                reader.readAsDataURL(file);
+                removeBackground(file, imageTitle);
+            }
+        }
+
+        // Function to handle file upload from the file input element
         function handleFileUpload(event) {
             const file = event.target.files[0];
             if (file) {
@@ -375,6 +432,51 @@
             // console.log(child)
         });
         
+
+    // // Code to handle hover and click events for the image thumbnails
+    // bg_removed = document.getElementById("bg_removed");
+    // result_image = document.getElementById("resultImage");
+    // bg_removed.addEventListener('mouseover', function() {
+    //     bg_removed.style.outline = '2px solid #900'
+    // })
+    // bg_removed.addEventListener('mouseout', function() {
+    //     bg_removed.style.outline = ''
+    // })
+    // bg_removed.addEventListener('click', function() {
+    //     // Change the style so the img has a red tint over it, but only for 0.5 seconds.
+    //     bg_removed.style.filter = 'brightness(0.8) contrast(1.2) saturate(1.2) hue-rotate(10deg)';
+    //     setTimeout(() => {
+    //         bg_removed.style.filter = '';
+    //     }, 500);
+        
+    //     // Copy the image stored in the bg_removed <img> element to the clipboard
+    //     bg_removed.toBlob(function(blob) {
+    //         const item = new ClipboardItem({ 'image/png': blob });
+    //         navigator.clipboard.write([item]);
+    //     });
+    // })
+    // // Do the same for the result image
+    // result_image.addEventListener('mouseover', function() {
+    //     result_image.style.outline = '2px solid #900'
+    // })
+    // result_image.addEventListener('mouseout', function() {
+    //     result_image.style.outline = ''
+    // })
+    // result_image.addEventListener('click', function() {
+    //     // Change the style so the img has a red tint over it, but only for 0.5 seconds.
+    //     result_image.style.filter = 'brightness(0.8) contrast(1.2) saturate(1.2) hue-rotate(10deg)';
+    //     setTimeout(() => {
+    //         result_image.style.filter = '';
+    //     }, 500);
+        
+    //     // Copy the image stored in the bg_removed <img> element to the clipboard
+    //     result_image.toBlob(function(blob) {
+    //         const item = new ClipboardItem({ 'image/png': blob });
+    //         navigator.clipboard.write([item]);
+    //     });
+    // })
+
+
     </script>
 </body>
 </html>
