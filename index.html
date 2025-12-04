@@ -94,6 +94,27 @@
         .image-download-button:hover {
             background-color: #45a049c5;
         }
+
+
+        .image-container {
+            position: relative;
+        }
+
+        #cropToggleButton {
+            position: absolute;
+            top: 2%;
+            left: 2%;
+            /* transform: translate(-50%, -50%);
+            -ms-transform: translate(-50%, -50%); */
+            /* background-color: #555;
+            color: white; */
+            font-size: 16px;
+            /* padding: 12px 24px; */
+            border: none;
+            cursor: pointer;
+            border-radius: 5px;
+            }
+
     </style>
     <script src="https://docs.opencv.org/4.5.0/opencv.js"></script>
 </head>
@@ -117,7 +138,17 @@
         <span style="margin: 10px 10px; padding-bottom: 20px; display: flex; align-items: center">&#8594;</span>
         <img id="bg_removed" width="100" height="100" style="border-radius: 10px; background-color: rgba(211, 229, 245, 0.942); display: flex; text-align: center; align-items: center; justify-content: center;" alt="BG Removed Image">
         <span style="margin: 10px 10px; padding-bottom: 20px; display: flex; text-align: center; align-items: center">&#8594;</span>
-        <img id="resultImage" height="100" width="100" alt="Final Image" style="border-radius: 10px; background-color: rgba(211, 245, 219, 0.942); display: flex; text-align: center; align-items: center; justify-content: center;">
+        
+        <div class="image-container">
+            <img id="resultImage" height="100" width="100" alt="Final Image" style="border-radius: 10px; background-color: rgba(211, 245, 219, 0.942); display: flex; text-align: center; align-items: center; justify-content: center;">
+            <!-- toggle button to change the resultImage from square to "tight" against the image. -->
+            <div id="cropToggleButton" style="display:flex; flex-direction:column; align-items:center; margin-left:8px;">
+                <!-- <label style="font-size:0.9em; margin-bottom:6px;">Result crop</label> -->
+                <button id="cropToggle" style="padding:6px 10px; font-size:0.9em; border-radius:6px; background:#4c8eaf; color:#fff; border:none; cursor:pointer;">Crop Tight</button>
+            </div>
+        </div>
+    
+
         <!-- <div style="margin: 10px;   display: flex; text-align: center; align-items: flex-start;">
             <label for="paddingInput">Padding (px):</label>
             <input type="number" id="paddingInput" value="0" style="padding: 5px; border-radius: 5px; border: 1px solid #ccc; width: 80px; text-align: center;">
@@ -398,6 +429,8 @@
             cropped.delete();
             centered.delete();
             // cv.resize(dst, dst, new cv.Size(500, 500), 0, 0, cv.INTER_AREA);
+
+            applyCropMode();
         }
     
         
@@ -423,6 +456,85 @@
                 navigator.clipboard.write([item]);
             });
         });
+
+        // Crop mode: 'square' (default) or 'tight'
+        let cropMode = 'square';
+
+        // Toggle button handler
+        document.getElementById('cropToggle').addEventListener('click', function() {
+            cropMode = (cropMode === 'square') ? 'tight' : 'square';
+            this.textContent = (cropMode === 'square') ? 'Crop Tight' : 'Crop Square';
+            // Re-apply the current crop mode to the last canvas output
+            applyCropMode();
+        });
+
+        // Apply the current crop mode to the canvas result and update resultImage
+        function applyCropMode() {
+            const canvas = document.getElementById('canvas');
+            const resultImage = document.getElementById('resultImage');
+
+            if (!canvas) return;
+
+            if (cropMode === 'square') {
+                // Use the canvas as-is (square produced by OpenCV)
+                resultImage.src = canvas.toDataURL('image/png');
+                // keep thumbnail size
+                resultImage.width = thumbnail_size;
+                resultImage.height = thumbnail_size;
+            } else {
+                // Tight: trim transparent pixels from canvas and display tight crop
+                const tight = getTightCropFromCanvas(canvas);
+                if (tight) {
+                    resultImage.src = tight.dataUrl;
+                    // scale the displayed thumbnail by preserving aspect ratio and using thumbnail_size as max dimension
+                    const w = tight.width;
+                    const h = tight.height;
+                    if (w >= h) {
+                        resultImage.width = thumbnail_size;
+                        resultImage.height = Math.round((thumbnail_size * h) / w);
+                    } else {
+                        resultImage.height = thumbnail_size;
+                        resultImage.width = Math.round((thumbnail_size * w) / h);
+                    }
+                }
+            }
+        }
+
+        // Finds the tight bounding box of non-transparent pixels on a canvas and returns a dataURL and dims
+        function getTightCropFromCanvas(srcCanvas) {
+            const w = srcCanvas.width;
+            const h = srcCanvas.height;
+            const ctx = srcCanvas.getContext('2d');
+            const imgData = ctx.getImageData(0, 0, w, h).data;
+
+            let top = h, left = w, right = 0, bottom = 0;
+            let found = false;
+
+            for (let y = 0; y < h; y++) {
+                for (let x = 0; x < w; x++) {
+                    const idx = (y * w + x) * 4;
+                    const alpha = imgData[idx + 3];
+                    if (alpha !== 0) {
+                        found = true;
+                        if (x < left) left = x;
+                        if (x > right) right = x;
+                        if (y < top) top = y;
+                        if (y > bottom) bottom = y;
+                    }
+                }
+            }
+
+            if (!found) return null;
+
+            const cropW = right - left + 1;
+            const cropH = bottom - top + 1;
+            const tmp = document.createElement('canvas');
+            tmp.width = cropW;
+            tmp.height = cropH;
+            const tctx = tmp.getContext('2d');
+            tctx.drawImage(srcCanvas, left, top, cropW, cropH, 0, 0, cropW, cropH);
+            return { dataUrl: tmp.toDataURL('image/png'), width: cropW, height: cropH };
+        }
 
         var thumbnail_size = 150;
         document.querySelectorAll('#image_thumbnails img').forEach((child) => {
