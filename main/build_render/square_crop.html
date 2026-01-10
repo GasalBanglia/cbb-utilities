@@ -1,7 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <!-- set the favicon to head.png-->
     <link rel="icon" type="image/png" href="head.jpg">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -125,7 +124,7 @@
         <span style="display:flex; align-items: center;">
             <img src="SSC_logo2.png" height="100px"  style="margin-left: 10px; margin-right:0px; ">
             <div id="title">
-                <h1>center-crop-tight</h1>
+                <h1>center-crop-square</h1>
                 <h3 style="margin-top:0px;">Now with Background Removal!</h3>
             </div>
         </span>
@@ -141,9 +140,9 @@
         <img id="bg_removed" width="100" height="100" style="border-radius: 10px; background-color: rgba(211, 229, 245, 0.942); display: flex; text-align: center; align-items: center; justify-content: center;" alt="BG Removed Image">
         <span style="margin: 10px 10px; padding-bottom: 20px; display: flex; text-align: center; align-items: center">&#8594;</span>
         
-
-        <img id="resultImage" height="100" width="100" alt="Final Image" style="border-radius: 10px; background-color: rgba(211, 245, 219, 0.942); display: flex; text-align: center; align-items: center; justify-content: center;">
-        
+        <div class="image-container">
+            <img id="resultImage" height="100" width="100" alt="Final Image" style="border-radius: 10px; background-color: rgba(211, 245, 219, 0.942); display: flex; text-align: center; align-items: center; justify-content: center;">
+        </div>
     
 
         <!-- <div style="margin: 10px;   display: flex; text-align: center; align-items: flex-start;">
@@ -325,7 +324,6 @@
             const src = cv.imread(img);
             const dst = new cv.Mat();            
             squareCenterResize(src, dst);
-            // applyTightCrop();
             // cv.cvtColor(dst, dst, cv.COLOR_BGR2RGBA, 0);
             cv.imshow('canvas', dst);
             resultImage.src = canvas.toDataURL("image/png");
@@ -401,41 +399,34 @@
             // Crop the image
             const rect = new cv.Rect(left, top, right - left + 1, bottom - top + 1);
             const cropped = src.roi(rect);
-            // Get dimensions of the cropped image
-            const cropW = cropped.cols;
-            const cropH = cropped.rows;
+            const size = Math.max(cropped.rows, cropped.cols);
+            const centered = new cv.Mat(size, size, src.type(), new cv.Scalar(255, 255, 255, 0)); // White background
 
-            // now that we have the cropped image, we need to adjust the size of the thumbnail canvas
-            // to fit the dimensions of the cropped image. The canvas will now be rectangular.
-            // get resultImage element
-            const result = document.getElementById('resultImage');
-            aspect = cropW / cropH;
-            if (cropW <= cropH) {
-                result.width = thumbnail_size * aspect;
-                result.height = thumbnail_size;
-            }
-            else {
-                result.width = thumbnail_size;
-                result.height = thumbnail_size / aspect;
-            }
+            const xOffset = Math.floor((size - cropped.cols) / 2);
+            const yOffset = Math.floor((size - cropped.rows) / 2);
 
-            // copy the cropped image to the resultImage element
+            /*
+            const padding = parseInt(document.getElementById('paddingInput').value, 10) || 0;
+            const paddedSize = size + 2 * padding;
+            const padded = new cv.Mat(paddedSize, paddedSize, src.type(), new cv.Scalar(255, 255, 255, 0)); // Transparent background
 
+            const xOffsetPadded = Math.floor((paddedSize - cropped.cols) / 2);
+            const yOffsetPadded = Math.floor((paddedSize - cropped.rows) / 2);
 
+            cropped.copyTo(padded.roi(new cv.Rect(xOffsetPadded, yOffsetPadded, cropped.cols, cropped.rows)));
+            padded.copyTo(dst);
 
-            // const centered = new cv.Mat(size, size, src.type(), new cv.Scalar(255, 255, 255, 0)); // White background
+            padded.delete();
+            */
 
-            // const xOffset = Math.floor((size - cropped.cols) / 2);
-            // const yOffset = Math.floor((size - cropped.rows) / 2);
+            cropped.copyTo(centered.roi(new cv.Rect(xOffset, yOffset, cropped.cols, cropped.rows)));
+            centered.copyTo(dst);
 
-            // cropped.copyTo(centered.roi(new cv.Rect(xOffset, yOffset, cropped.cols, cropped.rows)));
-            // centered.copyTo(dst);
-            cropped.copyTo(dst);
             cropped.delete();
-
-            // cropped.delete();
-            // centered.delete();
+            centered.delete();
             // cv.resize(dst, dst, new cv.Size(500, 500), 0, 0, cv.INTER_AREA);
+
+            // applyCropMode();
         }
     
         
@@ -462,67 +453,8 @@
             });
         });
 
-
-
-        // Apply the current crop mode to the canvas result and update resultImage
-        function applyTightCrop() {
-            const canvas = document.getElementById('canvas');
-            const resultImage = document.getElementById('resultImage');
-
-            if (!canvas) return;
-
-            // Tight: trim transparent pixels from canvas and display tight crop
-            const tight = getTightCropFromCanvas(canvas);
-            if (tight) {
-                resultImage.src = tight.dataUrl;
-                // scale the displayed thumbnail by preserving aspect ratio and using thumbnail_size as max dimension
-                const w = tight.width;
-                const h = tight.height;
-                if (w >= h) {
-                    resultImage.width = thumbnail_size;
-                    resultImage.height = Math.round((thumbnail_size * h) / w);
-                } else {
-                    resultImage.height = thumbnail_size;
-                    resultImage.width = Math.round((thumbnail_size * w) / h);
-              }
-           }
-        }
-
-        // Finds the tight bounding box of non-transparent pixels on a canvas and returns a dataURL and dims
-        function getTightCropFromCanvas(srcCanvas) {
-            const w = srcCanvas.width;
-            const h = srcCanvas.height;
-            const ctx = srcCanvas.getContext('2d');
-            const imgData = ctx.getImageData(0, 0, w, h).data;
-
-            let top = h, left = w, right = 0, bottom = 0;
-            let found = false;
-
-            for (let y = 0; y < h; y++) {
-                for (let x = 0; x < w; x++) {
-                    const idx = (y * w + x) * 4;
-                    const alpha = imgData[idx + 3];
-                    if (alpha !== 0) {
-                        found = true;
-                        if (x < left) left = x;
-                        if (x > right) right = x;
-                        if (y < top) top = y;
-                        if (y > bottom) bottom = y;
-                    }
-                }
-            }
-
-            if (!found) return null;
-
-            const cropW = right - left + 1;
-            const cropH = bottom - top + 1;
-            const tmp = document.createElement('canvas');
-            tmp.width = cropW;
-            tmp.height = cropH;
-            const tctx = tmp.getContext('2d');
-            tctx.drawImage(srcCanvas, left, top, cropW, cropH, 0, 0, cropW, cropH);
-            return { dataUrl: tmp.toDataURL('image/png'), width: cropW, height: cropH };
-        }
+        
+        
 
         var thumbnail_size = 150;
         document.querySelectorAll('#image_thumbnails img').forEach((child) => {
